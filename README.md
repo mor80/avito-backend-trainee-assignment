@@ -1,0 +1,1 @@
+# avito-backend-trainee-assignment
