@@ -1,0 +1,16 @@
+services:
+  postgres:
+    image: postgres:15
+    container_name: my-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${REVIEWER_POSTGRES__USER:-postgres}
+      POSTGRES_PASSWORD: ${REVIEWER_POSTGRES__PASSWORD:-postgres}
+      POSTGRES_DB: ${REVIEWER_POSTGRES__DB_NAME:-service-reviewer}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "${REVIEWER_POSTGRES__PORT:-5432}:5432"
+
+volumes:
+  pgdata:
