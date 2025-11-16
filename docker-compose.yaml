@@ -11,12 +11,31 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "${REVIEWER_POSTGRES__PORT:-5432}:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${REVIEWER_POSTGRES__USER:-postgres}"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  migrate:
+    build:
+      context: .
+      dockerfile: goose/Dockerfile
+    container_name: reviewer-migrate
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: "no"
+    command: ["postgres://${REVIEWER_POSTGRES__USER:-postgres}:${REVIEWER_POSTGRES__PASSWORD:-postgres}@postgres:5432/${REVIEWER_POSTGRES__DB_NAME:-service-reviewer}?sslmode=disable", "up"]
 
   app:
     build: .
     container_name: reviewer-app
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     environment:
       REVIEWER_POSTGRES__HOST: postgres
       REVIEWER_POSTGRES__PORT: 5432
