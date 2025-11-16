@@ -142,6 +142,15 @@ func (s *PullRequestService) Reassign(ctx context.Context, prID, oldReviewerID s
 	return updated, replacement, nil
 }
 
+func (s *PullRequestService) AssignmentStats(ctx context.Context) ([]model.AssignmentStats, error) {
+	stats, err := s.prRepo.GetAssignmentStats(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("pull request service: %w", err)
+	}
+
+	return stats, nil
+}
+
 func (s *PullRequestService) selectReviewers(members []model.User, exclude map[string]struct{}, limit int) []string {
 	candidates := filterMembers(members, exclude)
 	if len(candidates) <= limit {

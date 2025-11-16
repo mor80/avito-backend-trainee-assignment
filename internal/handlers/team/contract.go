@@ -9,4 +9,5 @@ import (
 type teamService interface {
 	Create(ctx context.Context, team model.Team) (*model.Team, error)
 	Get(ctx context.Context, teamName string) (*model.Team, error)
+	DeactivateMembers(ctx context.Context, teamName string, userIDs []string) (*model.TeamDeactivationResult, error)
 }

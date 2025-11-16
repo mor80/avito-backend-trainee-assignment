@@ -128,6 +128,75 @@ func (r *UserRepository) SetIsActive(ctx context.Context, userID string, isActiv
 	return user, nil
 }
 
+func (r *UserRepository) ListByIDs(ctx context.Context, teamName string, userIDs []string) ([]model.User, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+
+	const query = `
+		SELECT user_id, username, team_name, is_active
+		FROM users
+		WHERE team_name = $1 AND user_id = ANY($2)
+	`
+
+	rows, err := r.pool.Query(ctx, query, teamName, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+	defer rows.Close()
+
+	var users []model.User
+	for rows.Next() {
+		user, scanErr := scanUser(rows)
+		if scanErr != nil {
+			return nil, fmt.Errorf("database error: %w", scanErr)
+		}
+
+		users = append(users, *user)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	return users, nil
+}
+
+func (r *UserRepository) DeactivateUsers(ctx context.Context, teamName string, userIDs []string) ([]string, error) {
+	if len(userIDs) == 0 {
+		return nil, nil
+	}
+
+	const query = `
+		UPDATE users
+		SET is_active = FALSE
+		WHERE team_name = $1 AND user_id = ANY($2)
+		RETURNING user_id
+	`
+
+	rows, err := r.pool.Query(ctx, query, teamName, userIDs)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+	defer rows.Close()
+
+	var updated []string
+	for rows.Next() {
+		var id string
+		if err := rows.Scan(&id); err != nil {
+			return nil, fmt.Errorf("database error: %w", err)
+		}
+
+		updated = append(updated, id)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	return updated, nil
+}
+
 type scanner interface {
 	Scan(dest ...any) error
 }

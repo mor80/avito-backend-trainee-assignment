@@ -191,6 +191,74 @@ func (r *PullRequestRepository) ListByReviewer(ctx context.Context, reviewerID s
 	return prs, nil
 }
 
+func (r *PullRequestRepository) ListOpenAssignmentsByReviewers(ctx context.Context, reviewerIDs []string) ([]model.PullRequestAssignment, error) {
+	if len(reviewerIDs) == 0 {
+		return nil, nil
+	}
+
+	const query = `
+		SELECT prr.pull_request_id, prr.reviewer_id
+		FROM pull_request_reviewers prr
+		JOIN pull_requests pr ON prr.pull_request_id = pr.pull_request_id
+		WHERE pr.status = 'OPEN' AND prr.reviewer_id = ANY($1)
+	`
+
+	rows, err := r.pool.Query(ctx, query, reviewerIDs)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+	defer rows.Close()
+
+	var assignments []model.PullRequestAssignment
+
+	for rows.Next() {
+		var a model.PullRequestAssignment
+		if err := rows.Scan(&a.PullRequestID, &a.ReviewerID); err != nil {
+			return nil, fmt.Errorf("database error: %w", err)
+		}
+
+		assignments = append(assignments, a)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	return assignments, nil
+}
+
+func (r *PullRequestRepository) GetAssignmentStats(ctx context.Context) ([]model.AssignmentStats, error) {
+	const query = `
+		SELECT reviewer_id, COUNT(*) as count
+		FROM pull_request_reviewers
+		GROUP BY reviewer_id
+		ORDER BY count DESC
+	`
+
+	rows, err := r.pool.Query(ctx, query)
+	if err != nil {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+	defer rows.Close()
+
+	var stats []model.AssignmentStats
+
+	for rows.Next() {
+		var s model.AssignmentStats
+		if err := rows.Scan(&s.UserID, &s.Count); err != nil {
+			return nil, fmt.Errorf("database error: %w", err)
+		}
+
+		stats = append(stats, s)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("database error: %w", err)
+	}
+
+	return stats, nil
+}
+
 func (r *PullRequestRepository) getReviewers(ctx context.Context, prID string) ([]string, error) {
 	const query = `
 		SELECT reviewer_id

@@ -59,3 +59,13 @@ type PullRequestReviewerDB struct {
 	PullRequestID string `db:"pull_request_id"`
 	ReviewerID    string `db:"reviewer_id"`
 }
+
+type AssignmentStats struct {
+	UserID string `json:"user_id"`
+	Count  int    `json:"assignment_count"`
+}
+
+type PullRequestAssignment struct {
+	PullRequestID string
+	ReviewerID    string
+}

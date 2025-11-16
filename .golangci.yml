@@ -1,0 +1,33 @@
+version: 2
+
+run:
+  timeout: 5m
+  allow-parallel-runners: true
+
+linters:
+  enable:
+    - govet
+    - staticcheck
+    - revive
+    - ineffassign
+    - errcheck
+
+linters-settings:
+  revive:
+    rules:
+      - name: exported
+        disabled: true
+      - name: package-comments
+        disabled: true
+      - name: unused-parameter
+        disabled: true
+
+  errcheck:
+    ignore:
+      - io.Closer.Close
+      - (*encoding/json.Encoder).Encode
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0

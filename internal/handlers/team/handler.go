@@ -27,6 +27,7 @@ func New(service teamService) *TeamHandler {
 func (h *TeamHandler) Register(r chi.Router) {
 	r.Post("/team/add", h.add)
 	r.Get("/team/get", h.get)
+	r.Post("/team/deactivateMembers", h.deactivateMembers)
 }
 
 func (h *TeamHandler) add(w http.ResponseWriter, r *http.Request) {
@@ -68,6 +69,30 @@ func (h *TeamHandler) get(w http.ResponseWriter, r *http.Request) {
 	}
 
 	shared.WriteJSON(w, http.StatusOK, team)
+}
+
+func (h *TeamHandler) deactivateMembers(w http.ResponseWriter, r *http.Request) {
+	defer r.Body.Close()
+
+	var req deactivateRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		shared.WriteError(w, http.StatusBadRequest, errorCodeBadRequest, "invalid request body")
+		return
+	}
+
+	if req.TeamName == "" || len(req.UserIDs) == 0 {
+		shared.WriteError(w, http.StatusBadRequest, errorCodeBadRequest, "team_name and user_ids are required")
+		return
+	}
+
+	result, err := h.service.DeactivateMembers(r.Context(), req.TeamName, req.UserIDs)
+	if err != nil {
+		status, code, msg := mapError(err)
+		shared.WriteError(w, status, code, msg)
+		return
+	}
+
+	shared.WriteJSON(w, http.StatusOK, deactivateResponse{Result: result})
 }
 
 func toMembers(items []teamMemberObject) []model.TeamMember {

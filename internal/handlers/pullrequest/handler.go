@@ -28,6 +28,7 @@ func (h *PullRequestHandler) Register(r chi.Router) {
 	r.Post("/pullRequest/create", h.create)
 	r.Post("/pullRequest/merge", h.merge)
 	r.Post("/pullRequest/reassign", h.reassign)
+	r.Get("/stats/assignments", h.stats)
 }
 
 func (h *PullRequestHandler) create(w http.ResponseWriter, r *http.Request) {
@@ -109,6 +110,17 @@ func (h *PullRequestHandler) reassign(w http.ResponseWriter, r *http.Request) {
 		PR:         pr,
 		ReplacedBy: replacedBy,
 	})
+}
+
+func (h *PullRequestHandler) stats(w http.ResponseWriter, r *http.Request) {
+	stats, err := h.service.AssignmentStats(r.Context())
+	if err != nil {
+		status, code, msg := mapError(err)
+		shared.WriteError(w, status, code, msg)
+		return
+	}
+
+	shared.WriteJSON(w, http.StatusOK, stats)
 }
 
 func mapError(err error) (int, string, string) {

@@ -9,15 +9,23 @@ import (
 	"mor80/service-reviewer/internal/service"
 )
 
+type pullRequestService interface {
+	Reassign(ctx context.Context, prID, oldReviewerID string) (*model.PullRequest, string, error)
+}
+
 type TeamService struct {
 	teamRepo service.TeamRepository
 	userRepo service.UserRepository
+	prRepo   service.PullRequestRepository
+	prSvc    pullRequestService
 }
 
-func New(teamRepo service.TeamRepository, userRepo service.UserRepository) *TeamService {
+func New(teamRepo service.TeamRepository, userRepo service.UserRepository, prRepo service.PullRequestRepository, prSvc pullRequestService) *TeamService {
 	return &TeamService{
 		teamRepo: teamRepo,
 		userRepo: userRepo,
+		prRepo:   prRepo,
+		prSvc:    prSvc,
 	}
 }
 
@@ -56,6 +64,64 @@ func (s *TeamService) Get(ctx context.Context, teamName string) (*model.Team, er
 	}
 
 	return team, nil
+}
+
+func (s *TeamService) DeactivateMembers(ctx context.Context, teamName string, userIDs []string) (*model.TeamDeactivationResult, error) {
+	if err := validateName(teamName); err != nil {
+		return nil, fmt.Errorf("team service: %w", err)
+	}
+
+	if len(userIDs) == 0 {
+		return nil, fmt.Errorf("team service: no user ids provided")
+	}
+
+	targets := unique(userIDs)
+
+	users, err := s.userRepo.ListByIDs(ctx, teamName, targets)
+	if err != nil {
+		return nil, fmt.Errorf("team service: %w", err)
+	}
+
+	if len(users) != len(targets) {
+		return nil, fmt.Errorf("team service: some users not found in team")
+	}
+
+	var activeIDs []string
+	for _, user := range users {
+		if user.IsActive {
+			activeIDs = append(activeIDs, user.ID)
+		}
+	}
+
+	if len(activeIDs) == 0 {
+		return nil, fmt.Errorf("team service: all specified users already inactive")
+	}
+
+	assignments, err := s.prRepo.ListOpenAssignmentsByReviewers(ctx, activeIDs)
+	if err != nil {
+		return nil, fmt.Errorf("team service: %w", err)
+	}
+
+	for _, assignment := range assignments {
+		if _, _, err := s.prSvc.Reassign(ctx, assignment.PullRequestID, assignment.ReviewerID); err != nil {
+			return nil, fmt.Errorf("team service: %w", err)
+		}
+	}
+
+	deactivated, err := s.userRepo.DeactivateUsers(ctx, teamName, activeIDs)
+	if err != nil {
+		return nil, fmt.Errorf("team service: %w", err)
+	}
+
+	if len(deactivated) == 0 {
+		return nil, fmt.Errorf("team service: no users were deactivated")
+	}
+
+	return &model.TeamDeactivationResult{
+		TeamName:          teamName,
+		DeactivatedUserID: deactivated,
+		ReassignedCount:   len(assignments),
+	}, nil
 }
 
 func validateTeam(team model.Team) error {
@@ -105,4 +171,24 @@ func membersToUsers(team model.Team) []model.User {
 	}
 
 	return users
+}
+
+func unique(ids []string) []string {
+	seen := make(map[string]struct{}, len(ids))
+	var result []string
+
+	for _, id := range ids {
+		if id == "" {
+			continue
+		}
+
+		if _, ok := seen[id]; ok {
+			continue
+		}
+
+		seen[id] = struct{}{}
+		result = append(result, id)
+	}
+
+	return result
 }

@@ -14,3 +14,9 @@ type TeamMember struct {
 type TeamDB struct {
 	Name string `db:"team_name"`
 }
+
+type TeamDeactivationResult struct {
+	TeamName          string   `json:"team_name"`
+	DeactivatedUserID []string `json:"deactivated_user_ids"`
+	ReassignedCount   int      `json:"reassigned_count"`
+}

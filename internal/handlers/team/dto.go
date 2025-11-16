@@ -17,3 +17,11 @@ type teamMemberObject struct {
 	IsActive bool   `json:"is_active"`
 }
 
+type deactivateRequest struct {
+	TeamName string   `json:"team_name"`
+	UserIDs  []string `json:"user_ids"`
+}
+
+type deactivateResponse struct {
+	Result *model.TeamDeactivationResult `json:"result"`
+}

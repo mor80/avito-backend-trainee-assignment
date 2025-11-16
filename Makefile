@@ -14,7 +14,8 @@ DB_URL ?= $(DB_DRIVER)://$(REVIEWER_POSTGRES__USER):$(REVIEWER_POSTGRES__PASSWOR
 DOCKER_APP_SERVICE=service-reviewer
 
 .PHONY: help migrate-create migrate-up migrate-down migrate-status \
-        docker-up docker-down docker-restart docker-logs docker-migrate-up docker-migrate-down app-run
+        docker-up docker-down docker-restart docker-logs docker-migrate-up docker-migrate-down \
+        app-run lint
 
 ##@ Goose commands
 
@@ -42,7 +43,7 @@ goose-help: ## Показать справку Goose
 ## Docker commands
 
 docker-up: ## Запустить контейнеры в фоне
-	docker compose up -d
+	docker compose up -d --build
 
 docker-down: ## Остановить контейнеры
 	docker compose down
@@ -63,3 +64,6 @@ docker-migrate-down: ## Откатить миграции внутри конт�
 
 app-run: ## Запустить приложение
 	go run ./cmd/service-reviewer/main.go
+
+lint: ## Запустить golangci-lint
+	golangci-lint run

@@ -1,7 +1,7 @@
 services:
   postgres:
     image: postgres:15
-    container_name: my-postgres
+    container_name: reviewer-postgres
     restart: unless-stopped
     environment:
       POSTGRES_USER: ${REVIEWER_POSTGRES__USER:-postgres}
@@ -11,6 +11,21 @@ services:
       - pgdata:/var/lib/postgresql/data
     ports:
       - "${REVIEWER_POSTGRES__PORT:-5432}:5432"
+
+  app:
+    build: .
+    container_name: reviewer-app
+    depends_on:
+      - postgres
+    environment:
+      REVIEWER_POSTGRES__HOST: postgres
+      REVIEWER_POSTGRES__PORT: 5432
+      REVIEWER_POSTGRES__USER: ${REVIEWER_POSTGRES__USER:-postgres}
+      REVIEWER_POSTGRES__PASSWORD: ${REVIEWER_POSTGRES__PASSWORD:-postgres}
+      REVIEWER_POSTGRES__DB_NAME: ${REVIEWER_POSTGRES__DB_NAME:-service-reviewer}
+      DB_DSN: postgres://${REVIEWER_POSTGRES__USER:-postgres}:${REVIEWER_POSTGRES__PASSWORD:-postgres}@postgres:5432/${REVIEWER_POSTGRES__DB_NAME:-service-reviewer}?sslmode=disable
+    ports:
+      - "8080:8080"
 
 volumes:
   pgdata:

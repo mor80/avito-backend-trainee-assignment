@@ -1,18 +1,35 @@
 package main
 
 import (
-	"fmt"
+	"context"
 	"log"
-	"mor80/service-reviewer/internal/config"
+	"mor80/service-reviewer/internal/app"
+	"os/signal"
+	"syscall"
+	"time"
 )
 
 func main() {
-	fmt.Println("Starting service-reviewer...")
+	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
+	defer stop()
 
-	cfg, err := config.Load("./configs/default.yaml")
+	app, err := app.New(ctx, "./configs/default.yaml")
 	if err != nil {
-		log.Fatalf("Failed to load configuration: %v", err)
+		log.Fatalf("init app: %v", err)
 	}
 
-	fmt.Printf("Configuration loaded: %+v\n", cfg)
+	defer func() {
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+		defer cancel()
+		app.Shutdown(shutdownCtx)
+	}()
+
+	go func() {
+		if err := app.Run(); err != nil {
+			log.Printf("server stopped: %v", err)
+			stop()
+		}
+	}()
+
+	<-ctx.Done()
 }
